@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Address — Tensorium Explorer</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬡</text></svg>">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">
+      <div class="brand-icon">⬡</div>
+      <span>Tensorium</span>
+      <span class="chain-badge">testnet</span>
+    </a>
+    <div class="navbar-search">
+      <form class="search-form" id="searchForm">
+        <input class="search-input" id="searchInput" type="text"
+          placeholder="Block height, txid, or address txm1…">
+        <button class="btn btn-primary" type="submit">Search</button>
+      </form>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <div style="padding:32px 0 0">
+      <div class="breadcrumb">
+        <a href="/">Home</a>
+        <span class="breadcrumb-sep">›</span>
+        <span>Address</span>
+      </div>
+
+      <div id="content">
+        <div class="state-box">
+          <div class="state-icon">🔍</div>
+          <div class="state-msg">Loading address data…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <span>Tensorium Testnet Explorer</span>
+    <a href="/">← Back to Explorer</a>
+  </div>
+</footer>
+
+<script type="module">
+import { relativeTime, formatDate, formatNumber, fetchJSON, setTitle, shortHash, copyBtn } from '/js/utils.js';
+
+const addr = location.pathname.split('/').pop();
+if (!addr || !addr.startsWith('txm1')) { location.href = '/'; }
+
+setTitle(`Address ${addr.slice(0, 14)}…`);
+
+async function load() {
+  try {
+    const data = await fetchJSON(`/api/address/${addr}`);
+    render(data);
+  } catch (e) {
+    document.getElementById('content').innerHTML = `
+      <div class="state-box">
+        <div class="state-icon">⚠</div>
+        <div class="state-title">Error loading address</div>
+        <div class="state-msg">${e.message}</div>
+        <div style="margin-top:16px"><a href="/" class="btn btn-ghost">← Home</a></div>
+      </div>`;
+  }
+}
+
+function render(d) {
+  setTitle(`Address ${addr.slice(0, 14)}…`);
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  // Address header
+  const addrHeader = document.createElement('div');
+  addrHeader.className = 'addr-header';
+
+  // Color-derived avatar using address chars
+  const icon = document.createElement('div');
+  icon.className = 'addr-icon';
+  icon.style.background = `linear-gradient(135deg, hsl(${addrColor(addr)},70%,45%), hsl(${addrColor(addr)+120},60%,55%))`;
+  addrHeader.appendChild(icon);
+
+  const titleDiv = document.createElement('div');
+  const title = document.createElement('div');
+  title.className = 'addr-title';
+  title.textContent = 'Address';
+  const mono = document.createElement('div');
+  mono.className = 'flex items-center gap-8 addr-mono';
+  const code = document.createElement('code');
+  code.textContent = addr;
+  mono.appendChild(code);
+  mono.appendChild(copyBtn(addr));
+  titleDiv.appendChild(title);
+  titleDiv.appendChild(mono);
+  addrHeader.appendChild(titleDiv);
+  content.appendChild(addrHeader);
+
+  // Stats row
+  const statsGrid = document.createElement('div');
+  statsGrid.className = 'stats-grid';
+  statsGrid.style.marginBottom = '24px';
+
+  const stats = [
+    { label: 'Total Received', value: `${d.total_received_txm} TXM`, sub: `${formatNumber(d.total_received_atoms)} atoms` },
+    { label: 'Appearances', value: formatNumber(d.tx_count), sub: 'in blocks' },
+  ];
+
+  for (const s of stats) {
+    const card = document.createElement('div');
+    card.className = 'stat-card';
+    card.innerHTML = `
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value" style="font-size:20px;color:var(--green)">${s.value}</div>
+      <div class="stat-sub">${s.sub}</div>`;
+    statsGrid.appendChild(card);
+  }
+  content.appendChild(statsGrid);
+
+  // Note about balance
+  const note = document.createElement('div');
+  note.style.cssText = 'background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--text2);margin-bottom:24px';
+  note.innerHTML = '⚠ <strong>Note:</strong> "Total Received" shows the sum of all outputs sent to this address across all blocks. Actual spendable balance requires UTXO tracking — use <code>txmwallet balance</code> for exact balance.';
+  content.appendChild(note);
+
+  // Transaction history
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const cardHeader = document.createElement('div');
+  cardHeader.className = 'card-header';
+  cardHeader.innerHTML = `<div class="card-title"><span class="card-title-icon">↕</span> Transaction History <span class="badge badge-count" style="margin-left:4px">${d.tx_count}</span></div>`;
+  card.appendChild(cardHeader);
+
+  if (!d.appearances.length) {
+    card.innerHTML += `<div class="state-box"><div class="state-icon">🔍</div><div class="state-title">No transactions</div><div class="state-msg">This address has not appeared in any block.</div></div>`;
+  } else {
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'table-wrap';
+    tableWrap.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Block</th>
+            <th>Tx ID</th>
+            <th>Type</th>
+            <th>Age</th>
+            <th style="text-align:right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${d.appearances.map(a => `
+            <tr>
+              <td class="td-height"><a href="/block/${a.block_height}">#${formatNumber(a.block_height)}</a></td>
+              <td class="td-hash" title="${a.txid}"><a href="/tx/${a.txid}">${shortHash(a.txid)}</a></td>
+              <td><span class="badge ${a.is_coinbase ? 'badge-coinbase' : 'badge-tx'}">${a.is_coinbase ? '⛏ Coinbase' : '↕ Transfer'}</span></td>
+              <td class="td-muted" title="${formatDate(a.block_time)}">${relativeTime(a.block_time)}</td>
+              <td style="text-align:right" class="td-amount">+${a.received_txm} TXM</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+    card.appendChild(tableWrap);
+  }
+
+  content.appendChild(card);
+}
+
+function addrColor(addr) {
+  let h = 0;
+  for (const c of addr) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+  return h % 360;
+}
+
+// Search
+document.getElementById('searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const val = document.getElementById('searchInput').value.trim();
+  if (/^\d+$/.test(val)) location.href = `/block/${val}`;
+  else if (val.startsWith('txm1')) location.href = `/address/${val}`;
+  else if (/^[0-9a-fA-F]{64}$/.test(val)) location.href = `/tx/${val.toLowerCase()}`;
+  else alert('Enter a block height, 64-char txid, or txm1… address');
+});
+
+load();
+</script>
+</body>
+</html>

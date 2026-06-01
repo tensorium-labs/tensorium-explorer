@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transaction — Tensorium Explorer</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬡</text></svg>">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">
+      <div class="brand-icon">⬡</div>
+      <span>Tensorium</span>
+      <span class="chain-badge">testnet</span>
+    </a>
+    <div class="navbar-search">
+      <form class="search-form" id="searchForm">
+        <input class="search-input" id="searchInput" type="text"
+          placeholder="Block height, txid, or address txm1…">
+        <button class="btn btn-primary" type="submit">Search</button>
+      </form>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <div style="padding:32px 0 0">
+      <div class="breadcrumb">
+        <a href="/">Home</a>
+        <span class="breadcrumb-sep">›</span>
+        <span>Transaction</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current" id="bcTxid">…</span>
+      </div>
+
+      <div id="content">
+        <div class="state-box">
+          <div class="state-icon">↕</div>
+          <div class="state-msg">Loading transaction…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <span>Tensorium Testnet Explorer</span>
+    <a href="/">← Back to Explorer</a>
+  </div>
+</footer>
+
+<script type="module">
+import { shortHash, relativeTime, formatDate, formatNumber, fetchJSON, setTitle, copyBtn } from '/js/utils.js';
+
+const txid = location.pathname.split('/').pop()?.toLowerCase();
+if (!txid || !/^[0-9a-f]{64}$/.test(txid)) { location.href = '/'; }
+
+setTitle(`Transaction ${txid.slice(0, 12)}…`);
+document.getElementById('bcTxid').textContent = `${txid.slice(0, 12)}…`;
+
+function renderInfoRow(label, valueEl) {
+  const row = document.createElement('div');
+  row.className = 'info-row';
+  const lbl = document.createElement('div');
+  lbl.className = 'info-label';
+  lbl.textContent = label;
+  const val = document.createElement('div');
+  val.className = 'info-value';
+  if (typeof valueEl === 'string') val.innerHTML = valueEl;
+  else val.appendChild(valueEl);
+  row.appendChild(lbl);
+  row.appendChild(val);
+  return row;
+}
+
+function codeWithCopy(value, className = 'td-hash') {
+  const wrap = document.createElement('span');
+  wrap.className = 'flex items-center gap-8';
+  const code = document.createElement('code');
+  code.className = className;
+  code.textContent = value;
+  wrap.appendChild(code);
+  wrap.appendChild(copyBtn(value));
+  return wrap;
+}
+
+async function load() {
+  try {
+    const tx = await fetchJSON(`/api/tx/${txid}`);
+    render(tx);
+  } catch (e) {
+    document.getElementById('content').innerHTML = `
+      <div class="state-box">
+        <div class="state-icon">⚠</div>
+        <div class="state-title">Transaction not found</div>
+        <div class="state-msg">${e.message}</div>
+        <div style="margin-top:16px"><a href="/" class="btn btn-ghost">← Back to Home</a></div>
+      </div>`;
+  }
+}
+
+function render(tx) {
+  setTitle(`Transaction ${tx.txid.slice(0, 12)}…`);
+  document.getElementById('bcTxid').textContent = `${tx.txid.slice(0, 12)}…`;
+
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  const summaryCard = document.createElement('div');
+  summaryCard.className = 'card';
+  summaryCard.innerHTML = `
+    <div class="card-header">
+      <div class="card-title"><span class="card-title-icon">↕</span> Transaction Summary</div>
+    </div>`;
+
+  const grid = document.createElement('div');
+  grid.className = 'info-grid';
+  const rows = [
+    ['Tx ID', codeWithCopy(tx.txid)],
+    ['Block Height', `<a href="/block/${tx.block_height}" class="td-height">#${formatNumber(tx.block_height)}</a>`],
+    ['Block Hash', codeWithCopy(tx.block_hash)],
+    ['Block Time', `<span title="${formatDate(tx.block_time)}">${formatDate(tx.block_time)}</span> <span class="text-muted text-xs">(${relativeTime(tx.block_time)})</span>`],
+    ['Position In Block', `<span class="badge badge-count">${formatNumber(tx.tx_index)}</span>`],
+    ['Type', `<span class="badge ${tx.is_coinbase ? 'badge-coinbase' : 'badge-tx'}">${tx.is_coinbase ? '⛏ Coinbase' : '↕ Transfer'}</span>`],
+    ['Total Output', `<span class="td-amount">${tx.total_output_txm} TXM</span> <span class="text-muted text-xs">(${formatNumber(tx.total_output_atoms)} atoms)</span>`],
+    ['Chain', `<span class="chain-badge">${tx.chain_id}</span>`],
+    ['Difficulty', `<span class="font-bold">${tx.difficulty_bits}</span> <span class="text-muted text-xs">leading zero bits</span>`],
+  ];
+  for (const [label, val] of rows) grid.appendChild(renderInfoRow(label, val));
+  summaryCard.appendChild(grid);
+  content.appendChild(summaryCard);
+
+  if (tx.payload_text) {
+    const payloadCard = document.createElement('div');
+    payloadCard.className = 'card';
+    payloadCard.innerHTML = `
+      <div class="card-header">
+        <div class="card-title"><span class="card-title-icon">✎</span> Payload</div>
+      </div>
+      <div class="payload-box">${escapeHtml(tx.payload_text)}</div>`;
+    content.appendChild(payloadCard);
+  }
+
+  const ioCard = document.createElement('div');
+  ioCard.className = 'card';
+  ioCard.innerHTML = `
+    <div class="card-header">
+      <div class="card-title"><span class="card-title-icon">⇄</span> Inputs & Outputs</div>
+    </div>`;
+
+  const body = document.createElement('div');
+  body.className = 'tx-list';
+
+  const item = document.createElement('div');
+  item.className = 'tx-item';
+  const io = document.createElement('div');
+  io.className = 'tx-io';
+
+  const inputsDiv = document.createElement('div');
+  inputsDiv.innerHTML = `<div class="io-label">Inputs</div>`;
+  if (!tx.inputs.length) {
+    inputsDiv.innerHTML += `<div class="io-empty">Coinbase transaction — newly minted output</div>`;
+  } else {
+    for (const input of tx.inputs) {
+      const row = document.createElement('div');
+      row.className = 'io-row';
+      row.innerHTML = `
+        <span class="io-addr" title="${input.previous_txid}">${shortHash(input.previous_txid, 16)} #${input.output_index}</span>
+        <a href="/tx/${input.previous_txid}" class="tx-jump-link">View</a>`;
+      inputsDiv.appendChild(row);
+    }
+  }
+
+  const arrow = document.createElement('div');
+  arrow.className = 'io-arrow';
+  arrow.textContent = '→';
+
+  const outputsDiv = document.createElement('div');
+  outputsDiv.innerHTML = `<div class="io-label">Outputs</div>`;
+  for (const output of tx.outputs) {
+    const row = document.createElement('div');
+    row.className = 'io-row';
+    const addressMarkup = output.address === 'genesis'
+      ? `<span class="io-addr io-genesis">genesis</span>`
+      : `<a href="/address/${output.address}" class="io-addr">${output.address}</a>`;
+    row.innerHTML = `
+      ${addressMarkup}
+      <span class="io-val">${output.value_txm} TXM</span>`;
+    outputsDiv.appendChild(row);
+  }
+
+  io.appendChild(inputsDiv);
+  io.appendChild(arrow);
+  io.appendChild(outputsDiv);
+  item.appendChild(io);
+  body.appendChild(item);
+  ioCard.appendChild(body);
+  content.appendChild(ioCard);
+}
+
+function escapeHtml(value) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
+document.getElementById('searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const val = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (/^\d+$/.test(val)) location.href = `/block/${val}`;
+  else if (val.startsWith('txm1')) location.href = `/address/${val}`;
+  else if (/^[0-9a-f]{64}$/.test(val)) location.href = `/tx/${val}`;
+  else alert('Enter a block height, 64-char txid, or txm1… address');
+});
+
+load();
+</script>
+</body>
+</html>

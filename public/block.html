@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Block — Tensorium Explorer</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬡</text></svg>">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">
+      <div class="brand-icon">⬡</div>
+      <span>Tensorium</span>
+      <span class="chain-badge">testnet</span>
+    </a>
+    <div class="navbar-search">
+      <form class="search-form" id="searchForm">
+        <input class="search-input" id="searchInput" type="text"
+          placeholder="Block height, txid, or address txm1…">
+        <button class="btn btn-primary" type="submit">Search</button>
+      </form>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <div style="padding:32px 0 0">
+      <div class="breadcrumb">
+        <a href="/">Home</a>
+        <span class="breadcrumb-sep">›</span>
+        <span>Blocks</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current" id="bcHeight">…</span>
+      </div>
+
+      <div class="block-nav" id="blockNav" style="display:none">
+        <button class="btn btn-ghost" id="btnPrev">← Prev</button>
+        <span class="block-nav-label" id="navLabel"></span>
+        <button class="btn btn-ghost" id="btnNext">Next →</button>
+        <a href="/" class="btn btn-ghost">Home</a>
+      </div>
+
+      <div id="content">
+        <div class="state-box"><div class="state-icon">⬡</div><div class="state-msg">Loading block…</div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <span>Tensorium Testnet Explorer</span>
+    <a href="/">← Back to Explorer</a>
+  </div>
+</footer>
+
+<script type="module">
+import { shortHash, relativeTime, formatDate, formatNumber, fetchJSON, setTitle, copyBtn } from '/js/utils.js';
+
+const height = parseInt(location.pathname.split('/').pop());
+if (isNaN(height)) { location.href = '/'; }
+
+setTitle(`Block #${formatNumber(height)}`);
+document.getElementById('bcHeight').textContent = `#${formatNumber(height)}`;
+
+function renderInfoRow(label, valueEl) {
+  const row = document.createElement('div');
+  row.className = 'info-row';
+  const lbl = document.createElement('div');
+  lbl.className = 'info-label';
+  lbl.textContent = label;
+  const val = document.createElement('div');
+  val.className = 'info-value';
+  if (typeof valueEl === 'string') val.innerHTML = valueEl;
+  else val.appendChild(valueEl);
+  row.appendChild(lbl);
+  row.appendChild(val);
+  return row;
+}
+
+function hashEl(h) {
+  const wrap = document.createElement('span');
+  wrap.className = 'flex items-center gap-8';
+  const code = document.createElement('code');
+  code.className = 'td-hash';
+  code.textContent = h;
+  wrap.appendChild(code);
+  wrap.appendChild(copyBtn(h));
+  return wrap;
+}
+
+function addrEl(addr) {
+  if (!addr || addr === 'genesis') {
+    const s = document.createElement('span');
+    s.className = 'text-muted';
+    s.textContent = 'genesis (no recipient)';
+    return s;
+  }
+  const wrap = document.createElement('span');
+  wrap.className = 'flex items-center gap-8';
+  const a = document.createElement('a');
+  a.href = `/address/${addr}`;
+  a.className = 'td-addr';
+  a.textContent = addr;
+  wrap.appendChild(a);
+  wrap.appendChild(copyBtn(addr));
+  return wrap;
+}
+
+async function load() {
+  try {
+    const block = await fetchJSON(`/api/block/${height}`);
+    render(block);
+  } catch (e) {
+    document.getElementById('content').innerHTML = `
+      <div class="state-box">
+        <div class="state-icon">⚠</div>
+        <div class="state-title">Block not found</div>
+        <div class="state-msg">${e.message}</div>
+        <div style="margin-top:16px"><a href="/" class="btn btn-ghost">← Back to Home</a></div>
+      </div>`;
+  }
+}
+
+function render(b) {
+  setTitle(`Block #${formatNumber(b.height)}`);
+  document.getElementById('bcHeight').textContent = `#${formatNumber(b.height)}`;
+
+  // Block nav
+  const nav = document.getElementById('blockNav');
+  nav.style.display = 'flex';
+  document.getElementById('navLabel').textContent = `Block #${formatNumber(b.height)}`;
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  if (b.height > 0) { btnPrev.onclick = () => location.href = `/block/${b.height - 1}`; }
+  else btnPrev.disabled = true;
+  btnNext.onclick = () => location.href = `/block/${b.height + 1}`;
+
+  // Header card
+  const grid = document.createElement('div');
+  grid.className = 'info-grid';
+
+  const rows = [
+    ['Height',    `<span class="font-bold" style="color:var(--primary-l)">#${formatNumber(b.height)}</span>`],
+    ['Hash',      hashEl(b.hash)],
+    ['Prev Hash', b.height === 0 ? '<span class="text-muted">none (genesis)</span>' : hashEl(b.prev_hash)],
+    ['Merkle Root', hashEl(b.merkle_root)],
+    ['Timestamp', `<span title="${formatDate(b.timestamp)}">${formatDate(b.timestamp)}</span> <span class="text-muted text-xs">(${relativeTime(b.timestamp)})</span>`],
+    ['Nonce',     `<code class="mono">${formatNumber(b.nonce)}</code>`],
+    ['Difficulty', `<span class="font-bold">${b.difficulty_bits}</span> <span class="text-muted text-xs">leading zero bits (≈ ${(Math.pow(2, b.difficulty_bits) / 1000).toFixed(0)}K hashes/block)</span>`],
+    ['Version',   `<code class="mono">${b.version}</code>`],
+    ['Chain',     `<span class="chain-badge">${b.chain_id}</span>`],
+    ['Transactions', `<span class="badge badge-count">${b.tx_count}</span>`],
+  ];
+
+  for (const [label, val] of rows) {
+    grid.appendChild(renderInfoRow(label, val));
+  }
+
+  // Transactions
+  const txListEl = document.createElement('div');
+  txListEl.className = 'tx-list';
+
+  for (const tx of b.transactions) {
+    const item = document.createElement('div');
+    item.className = 'tx-item';
+
+    const header = document.createElement('div');
+    header.className = 'tx-header';
+
+    const idWrap = document.createElement('a');
+    idWrap.className = 'tx-id';
+    idWrap.href = `/tx/${tx.id}`;
+    idWrap.textContent = tx.id;
+    header.appendChild(idWrap);
+    header.appendChild(copyBtn(tx.id));
+
+    const badge = document.createElement('span');
+    badge.className = tx.is_coinbase ? 'badge badge-coinbase' : 'badge badge-tx';
+    badge.textContent = tx.is_coinbase ? '⛏ Coinbase' : '↕ Transfer';
+    header.appendChild(badge);
+
+    item.appendChild(header);
+
+    const io = document.createElement('div');
+    io.className = 'tx-io';
+
+    // Inputs
+    const inputsDiv = document.createElement('div');
+    const inLabel = document.createElement('div');
+    inLabel.className = 'io-label';
+    inLabel.textContent = 'Inputs';
+    inputsDiv.appendChild(inLabel);
+    if (!tx.inputs || tx.inputs.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'io-empty';
+      empty.textContent = tx.is_coinbase ? 'Coinbase — newly minted' : 'No inputs';
+      inputsDiv.appendChild(empty);
+    } else {
+      for (const inp of tx.inputs) {
+        const row = document.createElement('div');
+        row.className = 'io-row';
+        const a = document.createElement('span');
+        a.className = 'io-addr';
+        if (inp.previous_txid) {
+          a.textContent = `${inp.previous_txid.slice(0,12)}… #${inp.output_index}`;
+          a.title = inp.previous_txid;
+        } else {
+          a.textContent = 'unknown input';
+        }
+        row.appendChild(a);
+        if (inp.previous_txid) {
+          const view = document.createElement('a');
+          view.href = `/tx/${inp.previous_txid}`;
+          view.className = 'tx-jump-link';
+          view.textContent = 'View';
+          row.appendChild(view);
+        }
+        inputsDiv.appendChild(row);
+      }
+    }
+
+    const arrow = document.createElement('div');
+    arrow.className = 'io-arrow';
+    arrow.textContent = '→';
+
+    // Outputs
+    const outputsDiv = document.createElement('div');
+    const outLabel = document.createElement('div');
+    outLabel.className = 'io-label';
+    outLabel.textContent = 'Outputs';
+    outputsDiv.appendChild(outLabel);
+    for (const out of tx.outputs) {
+      const row = document.createElement('div');
+      row.className = 'io-row';
+      const aEl = document.createElement('a');
+      if (out.address === 'genesis') {
+        aEl.className = 'io-addr io-genesis';
+        aEl.textContent = 'genesis';
+      } else {
+        aEl.href = `/address/${out.address}`;
+        aEl.className = 'io-addr';
+        aEl.textContent = out.address;
+      }
+      const val = document.createElement('span');
+      val.className = 'io-val';
+      val.textContent = `${out.value_txm} TXM`;
+      row.appendChild(aEl);
+      row.appendChild(val);
+      outputsDiv.appendChild(row);
+    }
+
+    io.appendChild(inputsDiv);
+    io.appendChild(arrow);
+    io.appendChild(outputsDiv);
+    item.appendChild(io);
+    txListEl.appendChild(item);
+  }
+
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  const headerCard = document.createElement('div');
+  headerCard.className = 'card';
+
+  const cardHeader = document.createElement('div');
+  cardHeader.className = 'card-header';
+  cardHeader.innerHTML = `<div class="card-title"><span class="card-title-icon">⬡</span> Block #${formatNumber(b.height)}</div>`;
+  headerCard.appendChild(cardHeader);
+  headerCard.appendChild(grid);
+  content.appendChild(headerCard);
+
+  const txCard = document.createElement('div');
+  txCard.className = 'card';
+  const txCardHeader = document.createElement('div');
+  txCardHeader.className = 'card-header';
+  txCardHeader.innerHTML = `<div class="card-title"><span class="card-title-icon">↕</span> Transactions <span class="badge badge-count" style="margin-left:4px">${b.tx_count}</span></div>`;
+  txCard.appendChild(txCardHeader);
+  txCard.appendChild(txListEl);
+  content.appendChild(txCard);
+}
+
+// Search
+document.getElementById('searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const val = document.getElementById('searchInput').value.trim();
+  if (/^\d+$/.test(val)) location.href = `/block/${val}`;
+  else if (val.startsWith('txm1')) location.href = `/address/${val}`;
+  else if (/^[0-9a-fA-F]{64}$/.test(val)) location.href = `/tx/${val.toLowerCase()}`;
+  else alert('Enter a block height, 64-char txid, or txm1… address');
+});
+
+load();
+</script>
+</body>
+</html>

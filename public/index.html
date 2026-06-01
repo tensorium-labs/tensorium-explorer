@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tensorium Explorer</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬡</text></svg>">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container navbar-inner">
+    <a href="/" class="navbar-brand">
+      <div class="brand-icon">⬡</div>
+      <span>Tensorium</span>
+      <span class="chain-badge">testnet</span>
+    </a>
+    <div class="navbar-search">
+      <form class="search-form" id="searchForm">
+        <input class="search-input" id="searchInput" type="text"
+          placeholder="Search by block height, txid, or address txm1…">
+        <button class="btn btn-primary" type="submit">Search</button>
+      </form>
+    </div>
+    <a href="https://github.com/tensorium-labs/tensorium-core" target="_blank"
+       class="btn btn-ghost" style="display:flex;align-items:center;gap:6px;white-space:nowrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<main>
+  <div class="container">
+    <div class="page-header">
+      <div class="flex items-center gap-8">
+        <span class="live-dot"></span>
+        <h1 class="page-title">Tensorium Blockchain Explorer</h1>
+      </div>
+      <p class="page-subtitle" id="chainInfo">Connecting to node…</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-label">Block Height</div>
+        <div class="stat-value" id="statHeight"><span class="skeleton" style="display:inline-block;width:80px;height:28px"></span></div>
+        <div class="stat-sub" id="statBlocks"></div>
+        <div class="stat-icon">⬡</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Difficulty</div>
+        <div class="stat-value" id="statDiff"><span class="skeleton" style="display:inline-block;width:40px;height:28px"></span></div>
+        <div class="stat-sub">leading zero bits</div>
+        <div class="stat-icon">⚙</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Est. Hashrate</div>
+        <div class="stat-value" id="statHashrate"><span class="skeleton" style="display:inline-block;width:80px;height:28px"></span></div>
+        <div class="stat-sub">network estimate</div>
+        <div class="stat-icon">⚡</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Mempool</div>
+        <div class="stat-value" id="statMempool"><span class="skeleton" style="display:inline-block;width:30px;height:28px"></span></div>
+        <div class="stat-sub">unconfirmed txs</div>
+        <div class="stat-icon">⏳</div>
+      </div>
+    </div>
+
+    <div class="charts-grid" id="chartsGrid">
+      <div class="card"><div class="state-box"><div class="state-icon">◔</div><div class="state-msg">Loading charts…</div></div></div>
+    </div>
+
+    <!-- Blocks table -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-title-icon">⬡</span>
+          Latest Blocks
+        </div>
+        <div class="card-actions">
+          <span class="text-muted text-xs" id="lastUpdate"></span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Height</th>
+              <th>Hash</th>
+              <th>Age</th>
+              <th>Txs</th>
+              <th>Miner</th>
+              <th style="text-align:right">Reward</th>
+            </tr>
+          </thead>
+          <tbody id="blocksBody">
+            <tr><td colspan="6"><div class="state-box"><div class="state-icon">⬡</div><div class="state-msg">Loading blocks…</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="page-info" id="pageInfo"></span>
+        <button class="btn btn-ghost" id="btnNewer" onclick="loadNewer()" disabled>← Newer</button>
+        <button class="btn btn-ghost" id="btnOlder" onclick="loadOlder()">Older →</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="card-title-icon">↕</span>
+          Latest Transactions
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tx ID</th>
+              <th>Block</th>
+              <th>Type</th>
+              <th>Age</th>
+              <th style="text-align:right">Total Output</th>
+            </tr>
+          </thead>
+          <tbody id="txsBody">
+            <tr><td colspan="5"><div class="state-box"><div class="state-icon">↕</div><div class="state-msg">Loading transactions…</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <span>Tensorium Testnet Explorer — coins have no monetary value</span>
+    <span>
+      <a href="https://t.me/+QOsnpSdhDGZkZGQ1" target="_blank">Telegram</a>
+      · <a href="https://docs.tensoriumlabs.com" target="_blank">Docs</a>
+      · <a href="https://github.com/tensorium-labs/tensorium-core" target="_blank">GitHub</a>
+      · Chain: <code id="footerChain">tensorium-testnet-0</code>
+    </span>
+  </div>
+</footer>
+
+<script type="module">
+import { shortHash, shortAddr, relativeTime, formatDate, formatHashrate, formatNumber, formatTxmFromAtoms, fetchJSON, setTitle } from '/js/utils.js';
+
+setTitle('Home');
+
+const PAGE = 20;
+let currentFrom = null;
+let tipHeight = 0;
+let chartsLoaded = false;
+let transactionsLoaded = false;
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
+function renderLineChart(points, valueKey, color, formatter) {
+  if (!points.length) {
+    return `<div class="state-box chart-empty"><div class="state-msg">No chart data</div></div>`;
+  }
+
+  const width = 640;
+  const height = 220;
+  const padding = 18;
+  const values = points.map(point => Number(point[valueKey] ?? 0));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = Math.max(max - min, 1);
+
+  const coords = points.map((point, index) => {
+    const x = padding + (index * (width - padding * 2)) / Math.max(points.length - 1, 1);
+    const y = height - padding - ((Number(point[valueKey] ?? 0) - min) / span) * (height - padding * 2);
+    return [x, y];
+  });
+
+  const polyline = coords.map(([x, y]) => `${x},${y}`).join(' ');
+  const area = `0,${height} ${coords.map(([x, y]) => `${x},${y}`).join(' ')} ${width},${height}`;
+  const latest = points[points.length - 1];
+  const first = points[0];
+
+  return `
+    <div class="chart-shell">
+      <svg viewBox="0 0 ${width} ${height}" class="chart-svg" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="fill-${valueKey}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${color}" stop-opacity="0.35"></stop>
+            <stop offset="100%" stop-color="${color}" stop-opacity="0"></stop>
+          </linearGradient>
+        </defs>
+        <polyline points="${area}" fill="url(#fill-${valueKey})"></polyline>
+        <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+      </svg>
+      <div class="chart-meta">
+        <span>Start: ${escapeHtml(formatter(first[valueKey]))}</span>
+        <span>Latest: ${escapeHtml(formatter(latest[valueKey]))}</span>
+      </div>
+    </div>`;
+}
+
+async function loadCharts() {
+  chartsLoaded = true;
+  const mount = document.getElementById('chartsGrid');
+  try {
+    const data = await fetchJSON('/api/charts');
+    mount.innerHTML = `
+      <div class="chart-card">
+        <div class="chart-card-head">
+          <div>
+            <div class="chart-title">Difficulty Trend</div>
+            <div class="chart-sub">Recent sampled blocks across the chain</div>
+          </div>
+          <div class="chart-chip">${formatNumber(data.difficulty.at(-1)?.value ?? 0)} bits</div>
+        </div>
+        ${renderLineChart(data.difficulty, 'value', '#58a6ff', value => `${formatNumber(value)} bits`)}
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-head">
+          <div>
+            <div class="chart-title">Supply Minted</div>
+            <div class="chart-sub">Cumulative coinbase outputs observed on-chain</div>
+          </div>
+          <div class="chart-chip">${formatTxmFromAtoms(data.current_supply_atoms)} TXM</div>
+        </div>
+        ${renderLineChart(data.supply, 'value_atoms', '#3fb950', value => `${formatTxmFromAtoms(value)} TXM`)}
+      </div>`;
+  } catch (e) {
+    mount.innerHTML = `<div class="card"><div class="state-box"><div class="state-icon">⚠</div><div class="state-title">Failed to load charts</div><div class="state-msg">${escapeHtml(e.message)}</div></div></div>`;
+  }
+}
+
+async function loadTransactions() {
+  transactionsLoaded = true;
+  const tbody = document.getElementById('txsBody');
+  try {
+    const data = await fetchJSON('/api/transactions?limit=12');
+    if (!data.transactions.length) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="state-box"><div class="state-icon">↕</div><div class="state-title">No transactions</div></div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.transactions.map(tx => `
+      <tr>
+        <td class="td-hash" title="${tx.txid}"><a href="/tx/${tx.txid}">${shortHash(tx.txid)}</a></td>
+        <td class="td-height"><a href="/block/${tx.block_height}">#${formatNumber(tx.block_height)}</a></td>
+        <td><span class="badge ${tx.is_coinbase ? 'badge-coinbase' : 'badge-tx'}">${tx.is_coinbase ? '⛏ Coinbase' : '↕ Transfer'}</span></td>
+        <td class="td-muted" title="${formatDate(tx.block_time)}">${relativeTime(tx.block_time)}</td>
+        <td style="text-align:right" class="td-amount">${tx.total_output_txm} TXM</td>
+      </tr>`).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="state-box"><div class="state-icon">⚠</div><div class="state-title">Failed to load transactions</div><div class="state-msg">${escapeHtml(e.message)}</div></div></td></tr>`;
+  }
+}
+
+async function loadStats() {
+  try {
+    const s = await fetchJSON('/api/stats');
+    document.getElementById('statHeight').textContent = formatNumber(s.height);
+    document.getElementById('statBlocks').textContent = `${formatNumber(s.blocks)} total blocks`;
+    document.getElementById('statDiff').textContent = s.difficulty_bits;
+    document.getElementById('statHashrate').textContent = formatHashrate(s.hashrate);
+    document.getElementById('statMempool').textContent = formatNumber(s.mempool_count);
+    document.getElementById('chainInfo').textContent =
+      `Chain: ${s.chain_id} · Height: ${formatNumber(s.height)} · Difficulty: ${s.difficulty_bits} bits`;
+    document.getElementById('footerChain').textContent = s.chain_id;
+    tipHeight = s.height;
+  } catch (e) {
+    console.error('Stats error:', e);
+  }
+}
+
+async function loadBlocks(from) {
+  const tbody = document.getElementById('blocksBody');
+  try {
+    const url = from !== null ? `/api/blocks?limit=${PAGE}&from=${from}` : `/api/blocks?limit=${PAGE}`;
+    const data = await fetchJSON(url);
+    tipHeight = data.tip;
+    currentFrom = from ?? data.tip;
+
+    if (!data.blocks.length) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="state-box"><div class="state-icon">⬡</div><div class="state-title">No blocks</div></div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.blocks.map(b => {
+      const isGenesis = b.height === 0;
+      const minerAddr = b.miner === 'genesis' ? '<span class="text-muted">genesis</span>' :
+        `<a href="/address/${b.miner}" class="td-addr">${shortAddr(b.miner)}</a>`;
+      return `<tr>
+        <td class="td-height"><a href="/block/${b.height}">#${formatNumber(b.height)}</a></td>
+        <td class="td-hash" title="${b.hash}"><a href="/block/${b.height}">${shortHash(b.hash)}</a></td>
+        <td class="td-muted" title="${formatDate(b.timestamp)}">${relativeTime(b.timestamp)}</td>
+        <td><span class="badge badge-count">${b.tx_count}</span></td>
+        <td>${minerAddr}</td>
+        <td style="text-align:right" class="td-amount">${b.reward} TXM</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('lastUpdate').textContent = `Updated ${relativeTime(Math.floor(Date.now()/1000))}`;
+    updatePagination(data.blocks);
+    updatePageInfo(data.blocks);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="state-box"><div class="state-icon">⚠</div><div class="state-title">Failed to load blocks</div><div class="state-msg">${e.message}</div></div></td></tr>`;
+  }
+}
+
+function updatePagination(blocks) {
+  const oldest = blocks[blocks.length - 1]?.height ?? 0;
+  const newest = blocks[0]?.height ?? 0;
+  document.getElementById('btnNewer').disabled = newest >= tipHeight;
+  document.getElementById('btnOlder').disabled = oldest <= 0;
+}
+
+function updatePageInfo(blocks) {
+  if (!blocks.length) return;
+  const oldest = blocks[blocks.length - 1].height;
+  const newest = blocks[0].height;
+  document.getElementById('pageInfo').textContent =
+    `Showing blocks #${formatNumber(oldest)} – #${formatNumber(newest)}`;
+}
+
+window.loadNewer = function() {
+  const newest = currentFrom ?? tipHeight;
+  loadBlocks(Math.min(newest + PAGE, tipHeight));
+};
+
+window.loadOlder = function() {
+  const oldest = currentFrom !== null ? currentFrom - PAGE + 1 : tipHeight;
+  loadBlocks(Math.max(0, oldest - 1));
+};
+
+function scheduleSecondaryLoads() {
+  setTimeout(() => {
+    if (!transactionsLoaded) loadTransactions();
+  }, 1200);
+
+  setTimeout(() => {
+    if (!chartsLoaded) loadCharts();
+  }, 3500);
+}
+
+// Search
+document.getElementById('searchForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const val = document.getElementById('searchInput').value.trim();
+  if (!val) return;
+  if (/^\d+$/.test(val)) {
+    window.location.href = `/block/${val}`;
+  } else if (val.startsWith('txm1')) {
+    window.location.href = `/address/${val}`;
+  } else if (/^[0-9a-fA-F]{64}$/.test(val)) {
+    window.location.href = `/tx/${val.toLowerCase()}`;
+  } else {
+    alert('Enter a block height number, 64-char txid, or a txm1… address');
+  }
+});
+
+// Init + auto-refresh
+loadStats();
+loadBlocks(null);
+scheduleSecondaryLoads();
+setInterval(() => { loadStats(); loadBlocks(null); }, 30_000);
+setInterval(() => { loadTransactions(); }, 60_000);
+setInterval(() => { loadCharts(); }, 300_000);
+</script>
+</body>
+</html>
