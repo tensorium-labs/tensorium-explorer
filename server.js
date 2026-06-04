@@ -1,17 +1,30 @@
 const express = require('express');
+const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
 const app = express();
 const PORT = 3000;
-const RPC_HOST = '127.0.0.1';
-const RPC_PORT = 23332;
+const RPC_HOST = process.env.TENSORIUM_EXPLORER_RPC_HOST || '127.0.0.1';
+const RPC_PORT = Number(process.env.TENSORIUM_EXPLORER_RPC_PORT || 33332);
 const ATOMS_PER_TXM = 100_000_000n;
 const CACHE_TTL_MS = 15_000;
 const CHART_CACHE_TTL_MS = 120_000;
 const CHART_BLOCK_WINDOW = 240;
 const TX_SCAN_WINDOW = 120;
 const TX_BATCH_SIZE = 10;
+const INDEX_BATCH_SIZE = 25;
+const INDEX_PATH = process.env.TENSORIUM_EXPLORER_INDEX || path.join(__dirname, 'txindex.json');
+
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path.endsWith('.html') || req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+  if (req.path.endsWith('/js/utils.js') || req.path === '/js/utils.js') {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+  next();
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -50,6 +63,92 @@ function rpcGet(path) {
 }
 
 const responseCache = new Map();
+const explorerIndex = {
+  chainId: null,
+  tipHeight: -1,
+  tipHash: null,
+  syncedAt: 0,
+  persistedAt: 0,
+  lastError: null,
+  syncPromise: null,
+  savePromise: null,
+  loadedFromDisk: false,
+  txById: new Map(),
+  addressAppearances: new Map(),
+  blockHashByHeight: new Map(),
+};
+
+function resetExplorerIndex() {
+  explorerIndex.chainId = null;
+  explorerIndex.tipHeight = -1;
+  explorerIndex.tipHash = null;
+  explorerIndex.syncedAt = 0;
+  explorerIndex.persistedAt = 0;
+  explorerIndex.lastError = null;
+  explorerIndex.loadedFromDisk = false;
+  explorerIndex.txById.clear();
+  explorerIndex.addressAppearances.clear();
+  explorerIndex.blockHashByHeight.clear();
+}
+
+function serializeExplorerIndex() {
+  return {
+    chainId: explorerIndex.chainId,
+    tipHeight: explorerIndex.tipHeight,
+    tipHash: explorerIndex.tipHash,
+    syncedAt: explorerIndex.syncedAt,
+    persistedAt: Date.now(),
+    txById: Object.fromEntries(explorerIndex.txById),
+    addressAppearances: Object.fromEntries(explorerIndex.addressAppearances),
+    blockHashByHeight: Object.fromEntries(explorerIndex.blockHashByHeight),
+  };
+}
+
+async function saveExplorerIndexToDisk() {
+  if (explorerIndex.savePromise) return explorerIndex.savePromise;
+
+  explorerIndex.savePromise = (async () => {
+    const payload = JSON.stringify(serializeExplorerIndex());
+    const tempPath = `${INDEX_PATH}.tmp`;
+    await fs.promises.writeFile(tempPath, payload);
+    await fs.promises.rename(tempPath, INDEX_PATH);
+    explorerIndex.persistedAt = Date.now();
+  })()
+    .catch(error => {
+      explorerIndex.lastError = `index save failed: ${error.message}`;
+      throw error;
+    })
+    .finally(() => {
+      explorerIndex.savePromise = null;
+    });
+
+  return explorerIndex.savePromise;
+}
+
+async function loadExplorerIndexFromDisk() {
+  try {
+    const raw = await fs.promises.readFile(INDEX_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    explorerIndex.chainId = parsed.chainId || null;
+    explorerIndex.tipHeight = Number.isInteger(parsed.tipHeight) ? parsed.tipHeight : -1;
+    explorerIndex.tipHash = parsed.tipHash || null;
+    explorerIndex.syncedAt = parsed.syncedAt || 0;
+    explorerIndex.persistedAt = parsed.persistedAt || 0;
+    explorerIndex.lastError = null;
+    explorerIndex.loadedFromDisk = true;
+    explorerIndex.txById = new Map(Object.entries(parsed.txById || {}));
+    explorerIndex.addressAppearances = new Map(Object.entries(parsed.addressAppearances || {}));
+    explorerIndex.blockHashByHeight = new Map(
+      Object.entries(parsed.blockHashByHeight || {}).map(([height, hash]) => [Number(height), hash])
+    );
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return;
+    }
+    explorerIndex.lastError = `index load failed: ${error.message}`;
+    throw error;
+  }
+}
 
 async function withCache(key, ttlMs, loader) {
   const now = Date.now();
@@ -120,6 +219,113 @@ function transformBlock(raw) {
     reward,
     transactions: txs,
   };
+}
+
+function indexBlock(block) {
+  explorerIndex.blockHashByHeight.set(block.height, block.hash);
+  explorerIndex.tipHeight = block.height;
+  explorerIndex.tipHash = block.hash;
+  explorerIndex.chainId = block.chain_id;
+  explorerIndex.syncedAt = Date.now();
+
+  for (const [txIndex, tx] of block.transactions.entries()) {
+    const txRecord = {
+      txid: tx.id,
+      block_height: block.height,
+      block_hash: block.hash,
+      block_time: block.timestamp,
+      chain_id: block.chain_id,
+      difficulty_bits: block.difficulty_bits,
+      is_coinbase: tx.is_coinbase,
+      payload_text: tx.payload_text,
+      inputs: tx.inputs,
+      outputs: tx.outputs,
+      tx_index: txIndex,
+    };
+    explorerIndex.txById.set(tx.id, txRecord);
+
+    const totalsByAddress = new Map();
+    for (const output of tx.outputs) {
+      if (!output.address || !output.address.startsWith('txm1')) {
+        continue;
+      }
+      totalsByAddress.set(
+        output.address,
+        (totalsByAddress.get(output.address) || 0n) + BigInt(output.value_atoms)
+      );
+    }
+
+    for (const [address, valueAtoms] of totalsByAddress.entries()) {
+      const appearances = explorerIndex.addressAppearances.get(address) || [];
+      appearances.push({
+        block_height: block.height,
+        block_hash: block.hash,
+        block_time: block.timestamp,
+        txid: tx.id,
+        is_coinbase: tx.is_coinbase,
+        received_atoms: Number(valueAtoms),
+        received_txm: atomsToTxm(Number(valueAtoms)),
+      });
+      explorerIndex.addressAppearances.set(address, appearances);
+    }
+  }
+}
+
+async function ensureExplorerIndex() {
+  if (explorerIndex.syncPromise) return explorerIndex.syncPromise;
+
+  explorerIndex.syncPromise = (async () => {
+    try {
+      if (explorerIndex.tipHeight < 0 && explorerIndex.txById.size === 0) {
+        await loadExplorerIndexFromDisk();
+      }
+
+      const tip = await getTipState();
+      let changed = false;
+      if (explorerIndex.chainId && explorerIndex.chainId !== tip.chain_id) {
+        resetExplorerIndex();
+        changed = true;
+      }
+
+      if (explorerIndex.tipHeight >= 0) {
+        const currentTipBlock = await getBlockByHeight(explorerIndex.tipHeight);
+        if (currentTipBlock.hash !== explorerIndex.blockHashByHeight.get(explorerIndex.tipHeight)) {
+          resetExplorerIndex();
+          changed = true;
+        }
+      }
+
+      const startHeight = explorerIndex.tipHeight + 1;
+      for (let batchStart = startHeight; batchStart <= tip.height; batchStart += INDEX_BATCH_SIZE) {
+        const heights = [];
+        for (
+          let h = batchStart;
+          h <= tip.height && h < batchStart + INDEX_BATCH_SIZE;
+          h++
+        ) {
+          heights.push(h);
+        }
+        const blocks = await Promise.all(heights.map(h => getBlockByHeight(h)));
+        blocks
+          .sort((a, b) => a.height - b.height)
+          .forEach(block => indexBlock(block));
+        changed = true;
+      }
+
+      explorerIndex.chainId = tip.chain_id;
+      explorerIndex.lastError = null;
+      if (changed) {
+        await saveExplorerIndexToDisk();
+      }
+    } catch (error) {
+      explorerIndex.lastError = error.message;
+      throw error;
+    } finally {
+      explorerIndex.syncPromise = null;
+    }
+  })();
+
+  return explorerIndex.syncPromise;
 }
 
 // Estimate network hashrate from last N blocks
@@ -336,44 +542,17 @@ app.get('/api/address/:addr', async (req, res) => {
     const addr = req.params.addr;
     if (!addr.startsWith('txm1')) return res.status(400).json({ error: 'invalid address' });
 
-    const count = await getTipState();
-    const height = count.height;
-
-    // scan all blocks (fine for testnet; add DB index for mainnet)
-    const promises = [];
-    for (let h = 0; h <= height; h++) {
-      promises.push(getBlockByHeight(h).catch(() => null));
-    }
-    const blocks = (await Promise.all(promises)).filter(Boolean);
-
-    let totalReceived = 0n;
-    const appearances = [];
-
-    for (const block of blocks) {
-      for (const tx of block.transactions) {
-        const matchedOutputs = tx.outputs.filter(o => o.address === addr);
-        if (matchedOutputs.length > 0) {
-          const value = matchedOutputs.reduce((s, o) => s + BigInt(o.value_atoms), 0n);
-          totalReceived += value;
-          appearances.push({
-            block_height: block.height,
-            block_hash: block.hash,
-            block_time: block.timestamp,
-            txid: tx.id,
-            is_coinbase: tx.is_coinbase,
-            received_atoms: Number(value),
-            received_txm: atomsToTxm(Number(value)),
-          });
-        }
-      }
-    }
+    await ensureExplorerIndex();
+    const appearances = [...(explorerIndex.addressAppearances.get(addr) || [])]
+      .sort((a, b) => b.block_height - a.block_height);
+    const totalReceived = appearances.reduce((sum, item) => sum + BigInt(item.received_atoms), 0n);
 
     res.json({
       address: addr,
       total_received_atoms: Number(totalReceived),
       total_received_txm: atomsToTxm(Number(totalReceived)),
       tx_count: appearances.length,
-      appearances: appearances.sort((a, b) => b.block_height - a.block_height),
+      appearances,
     });
   } catch (e) {
     res.status(502).json({ error: e.message });
@@ -387,40 +566,55 @@ app.get('/api/tx/:txid', async (req, res) => {
       return res.status(400).json({ error: 'invalid txid' });
     }
 
-    const count = await getTipState();
-    const height = count.height;
-
-    for (let h = height; h >= 0; h--) {
-      const block = await getBlockByHeight(h);
-      const txIndex = block.transactions.findIndex(tx => tx.id === txid);
-      if (txIndex === -1) continue;
-
-      const tx = block.transactions[txIndex];
+    await ensureExplorerIndex();
+    const tx = explorerIndex.txById.get(txid);
+    if (tx) {
       const totalOutputAtoms = tx.outputs.reduce(
         (sum, output) => sum + BigInt(output.value_atoms),
         0n
       );
 
       return res.json({
-        txid: tx.id,
-        block_height: block.height,
-        block_hash: block.hash,
-        block_time: block.timestamp,
-        chain_id: block.chain_id,
-        difficulty_bits: block.difficulty_bits,
-        tx_index: txIndex,
-        is_coinbase: tx.is_coinbase,
+        ...tx,
         total_output_atoms: Number(totalOutputAtoms),
         total_output_txm: atomsToTxm(Number(totalOutputAtoms)),
-        payload_text: tx.payload_text,
-        inputs: tx.inputs,
-        outputs: tx.outputs,
       });
     }
 
     return res.status(404).json({ error: 'transaction not found' });
   } catch (e) {
     res.status(502).json({ error: e.message });
+  }
+});
+
+app.get('/api/indexer/status', async (req, res) => {
+  try {
+    await ensureExplorerIndex();
+    res.json({
+      chain_id: explorerIndex.chainId,
+      indexed_tip_height: explorerIndex.tipHeight,
+      indexed_tip_hash: explorerIndex.tipHash,
+      tx_count: explorerIndex.txById.size,
+      address_count: explorerIndex.addressAppearances.size,
+      synced_at: explorerIndex.syncedAt,
+      persisted_at: explorerIndex.persistedAt,
+      loaded_from_disk: explorerIndex.loadedFromDisk,
+      index_path: INDEX_PATH,
+      last_error: explorerIndex.lastError,
+    });
+  } catch (e) {
+    res.status(502).json({
+      chain_id: explorerIndex.chainId,
+      indexed_tip_height: explorerIndex.tipHeight,
+      indexed_tip_hash: explorerIndex.tipHash,
+      tx_count: explorerIndex.txById.size,
+      address_count: explorerIndex.addressAppearances.size,
+      synced_at: explorerIndex.syncedAt,
+      persisted_at: explorerIndex.persistedAt,
+      loaded_from_disk: explorerIndex.loadedFromDisk,
+      index_path: INDEX_PATH,
+      last_error: e.message,
+    });
   }
 });
 
