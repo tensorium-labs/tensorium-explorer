@@ -15,6 +15,9 @@ const TX_SCAN_WINDOW = 120;
 const TX_BATCH_SIZE = 10;
 const INDEX_BATCH_SIZE = 25;
 const INDEX_PATH = process.env.TENSORIUM_EXPLORER_INDEX || path.join(__dirname, 'txindex.json');
+const ADDRESS_HRP = 'txm';
+const P2SH_HRP = 'txms';
+const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 
 app.use((req, res, next) => {
   if (req.path === '/' || req.path.endsWith('.html') || req.path.startsWith('/api/')) {
@@ -41,6 +44,91 @@ function atomsToTxm(atoms) {
   const whole = big / ATOMS_PER_TXM;
   const frac = big % ATOMS_PER_TXM;
   return `${whole}.${frac.toString().padStart(8, '0')}`;
+}
+
+function bech32Polymod(values) {
+  const generators = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let chk = 1;
+  for (const value of values) {
+    const top = chk >>> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ value;
+    for (let i = 0; i < generators.length; i += 1) {
+      if ((top >>> i) & 1) chk ^= generators[i];
+    }
+  }
+  return chk;
+}
+
+function bech32HrpExpand(hrp) {
+  const out = [];
+  for (let i = 0; i < hrp.length; i += 1) out.push(hrp.charCodeAt(i) >>> 5);
+  out.push(0);
+  for (let i = 0; i < hrp.length; i += 1) out.push(hrp.charCodeAt(i) & 31);
+  return out;
+}
+
+function convertBits(data, fromBits, toBits, pad = true) {
+  let acc = 0;
+  let bits = 0;
+  const maxv = (1 << toBits) - 1;
+  const out = [];
+  for (const value of data) {
+    if (!Number.isInteger(value) || value < 0 || value >>> fromBits !== 0) {
+      return null;
+    }
+    acc = (acc << fromBits) | value;
+    bits += fromBits;
+    while (bits >= toBits) {
+      bits -= toBits;
+      out.push((acc >>> bits) & maxv);
+    }
+  }
+  if (pad) {
+    if (bits > 0) out.push((acc << (toBits - bits)) & maxv);
+  } else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv)) {
+    return null;
+  }
+  return out;
+}
+
+function bech32Encode(hrp, bytes) {
+  const words = convertBits(bytes, 8, 5, true);
+  if (!words) return null;
+  const values = bech32HrpExpand(hrp).concat(words).concat([0, 0, 0, 0, 0, 0]);
+  const polymod = bech32Polymod(values) ^ 1;
+  const checksum = [];
+  for (let i = 0; i < 6; i += 1) {
+    checksum.push((polymod >>> (5 * (5 - i))) & 31);
+  }
+  return `${hrp}1${words.concat(checksum).map(v => BECH32_CHARSET[v]).join('')}`;
+}
+
+function extractAddressFromScriptPubkey(scriptPubkey) {
+  if (!Array.isArray(scriptPubkey)) return null;
+
+  // P2SH: OP_HASH160 0x14 <20-byte hash> OP_EQUAL
+  if (scriptPubkey.length === 23 && scriptPubkey[0] === 0xa9 && scriptPubkey[1] === 0x14 && scriptPubkey[22] === 0x87) {
+    return bech32Encode(P2SH_HRP, scriptPubkey.slice(2, 22));
+  }
+
+  // P2PKH: OP_DUP OP_HASH160 0x14 <20-byte hash> OP_EQUALVERIFY OP_CHECKSIG
+  if (
+    scriptPubkey.length === 25 &&
+    scriptPubkey[0] === 0x76 &&
+    scriptPubkey[1] === 0xa9 &&
+    scriptPubkey[2] === 0x14 &&
+    scriptPubkey[23] === 0x88 &&
+    scriptPubkey[24] === 0xac
+  ) {
+    return bech32Encode(ADDRESS_HRP, scriptPubkey.slice(3, 23));
+  }
+
+  return null;
+}
+
+function normalizeOutputAddress(output) {
+  if (typeof output?.address === 'string' && output.address.length > 0) return output.address;
+  return extractAddressFromScriptPubkey(output?.script_pubkey);
 }
 
 function rpcGet(path) {
@@ -193,7 +281,8 @@ function transformBlock(raw) {
       signature_script: input.signature_script || [],
     })),
     outputs: (tx.outputs || []).map(o => ({
-      address: o.address,
+      address: normalizeOutputAddress(o),
+      script_pubkey: o.script_pubkey || [],
       value_atoms: o.value_atoms,
       value_txm: atomsToTxm(o.value_atoms),
     })),
@@ -246,7 +335,10 @@ function indexBlock(block) {
 
     const totalsByAddress = new Map();
     for (const output of tx.outputs) {
-      if (!output.address || !output.address.startsWith('txm1')) {
+      if (
+        !output.address ||
+        (!output.address.startsWith(`${ADDRESS_HRP}1`) && !output.address.startsWith(`${P2SH_HRP}1`))
+      ) {
         continue;
       }
       totalsByAddress.set(
