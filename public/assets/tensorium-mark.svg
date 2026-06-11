@@ -1,60 +1,60 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tensorium mark">
+<svg width="512" height="512" viewBox="0 0 1200 1200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tensorium T mark">
   <defs>
-    <linearGradient id="hex" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6EA0FF"></stop>
-      <stop offset="0.5" stop-color="#4C88FF"></stop>
-      <stop offset="1" stop-color="#4C88FF"></stop>
-    </linearGradient>
-    <linearGradient id="cTop" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#aed0ff"></stop><stop offset="1" stop-color="#4C88FF"></stop>
-    </linearGradient>
-    <linearGradient id="cLeft" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1d3f8f"></stop><stop offset="1" stop-color="#0b1d48"></stop>
-    </linearGradient>
-    <linearGradient id="cRight" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1d2a6f"></stop><stop offset="1" stop-color="#0b0d36"></stop>
-    </linearGradient>
-    <radialGradient id="cg" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#4C88FF" stop-opacity="0.95"></stop>
-      <stop offset="1" stop-color="#4C88FF" stop-opacity="0"></stop>
-    </radialGradient>
-    <filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"></feGaussianBlur></filter>
+    <style>
+      .bg { fill: #05070D; }
+      .ring { fill: #070B16; stroke: #F1EDE4; stroke-width: 28; }
+      .mark { fill: #F1EDE4; }
+      .accent { stroke: #4C88FF; stroke-width: 10; stroke-linecap: round; fill: none; }
+    </style>
   </defs>
 
-  
-  <g transform="translate(256 256)">
-    
-    <polygon points="0,-220 190,-110 190,110 0,220 -190,110 -190,-110" fill="#070d1a" stroke="url(#hex)" stroke-width="6"></polygon>
-    <polygon points="0,-220 190,-110 190,110 0,220 -190,110 -190,-110" fill="none" stroke="#4C88FF" stroke-width="14" opacity="0.16" filter="url(#b)"></polygon>
-    
-    <g stroke="#4C88FF" stroke-opacity="0.30" stroke-width="2">
-      <line x1="0" y1="-220" x2="0" y2="0"></line>
-      <line x1="190" y1="-110" x2="0" y2="0"></line>
-      <line x1="190" y1="110" x2="0" y2="0"></line>
-      <line x1="0" y1="220" x2="0" y2="0"></line>
-      <line x1="-190" y1="110" x2="0" y2="0"></line>
-      <line x1="-190" y1="-110" x2="0" y2="0"></line>
-    </g>
-    
-    <g fill="#4C88FF">
-      <circle cx="0" cy="-220" r="6"></circle><circle cx="190" cy="-110" r="6"></circle><circle cx="190" cy="110" r="6"></circle>
-      <circle cx="0" cy="220" r="6"></circle><circle cx="-190" cy="110" r="6"></circle><circle cx="-190" cy="-110" r="6"></circle>
-    </g>
+  <rect width="1200" height="1200" rx="260" class="bg"/>
+  <circle cx="600" cy="600" r="430" class="ring"/>
 
-    
-    <g>
-      <polygon points="0,-92 92,-46 0,0 -92,-46" fill="url(#cTop)"></polygon>
-      <polygon points="-92,-46 0,0 0,98 -92,52" fill="url(#cLeft)"></polygon>
-      <polygon points="92,-46 0,0 0,98 92,52" fill="url(#cRight)"></polygon>
-      <g stroke="#cfe0ff" stroke-opacity="0.5" stroke-width="2.5" fill="none">
-        <line x1="0" y1="0" x2="0" y2="98"></line><line x1="0" y1="0" x2="-92" y2="-46"></line><line x1="0" y1="0" x2="92" y2="-46"></line>
-      </g>
-      <g fill="#eaf2ff">
-        <circle cx="0" cy="-92" r="7"></circle><circle cx="92" cy="-46" r="6"></circle><circle cx="-92" cy="-46" r="6"></circle>
-        <circle cx="0" cy="98" r="6"></circle><circle cx="92" cy="52" r="5"></circle><circle cx="-92" cy="52" r="5"></circle>
-      </g>
-      <circle cx="0" cy="0" r="13" fill="#4C88FF"></circle>
-      <circle cx="0" cy="0" r="26" fill="url(#cg)"></circle>
-    </g>
-  </g>
+  <!-- top hash pillars -->
+  <rect x="538" y="282" width="28" height="72" rx="4" class="mark"/>
+  <rect x="634" y="282" width="28" height="72" rx="4" class="mark"/>
+
+  <!-- primary T monogram -->
+  <path class="mark" d="
+    M 346 412
+    L 854 412
+    L 828 462
+    L 654 462
+    L 654 858
+    L 610 896
+    L 600 896
+    L 590 896
+    L 546 858
+    L 546 462
+    L 372 462
+    Z
+  "/>
+
+  <!-- negative cuts for refined geometry -->
+  <path fill="#070B16" d="
+    M 404 480
+    L 796 480
+    L 772 512
+    L 628 512
+    L 628 850
+    L 600 874
+    L 572 850
+    L 572 512
+    L 428 512
+    Z
+  "/>
+
+  <!-- rebuild central stem in ivory -->
+  <path class="mark" d="
+    M 572 512
+    L 628 512
+    L 628 842
+    L 600 868
+    L 572 842
+    Z
+  "/>
+
+  <path class="accent" d="M 384 792 C 340 734, 324 670, 332 572" />
+  <path class="accent" d="M 816 792 C 860 734, 876 670, 868 572" />
 </svg>
