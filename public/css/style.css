@@ -1,26 +1,28 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --bg:        #070b12;
-  --surface:   #0d1117;
-  --surface2:  #161b22;
-  --border:    #21262d;
-  --border2:   #30363d;
-  --primary:   #7c3aed;
-  --primary-l: #a78bfa;
-  --primary-d: #5b21b6;
-  --blue:      #58a6ff;
-  --green:     #3fb950;
+  /* Tensorium official dark + electric-blue brand (matches tensoriumlabs.com) */
+  --bg:        #05070D;
+  --surface:   #0a0e18;
+  --surface2:  #11161f;
+  --border:    rgba(255,255,255,.08);
+  --border2:   rgba(76,136,255,.22);
+  --primary:   #4C88FF;
+  --primary-l: #6EA0FF;
+  --primary-d: #2f5fc7;
+  --blue:      #4C88FF;
+  --green:     #39d98a;
   --yellow:    #d29922;
   --red:       #f85149;
-  --text:      #e6edf3;
-  --text2:     #8b949e;
-  --text3:     #484f58;
-  --hash:      #79c0ff;
-  --addr:      #56d364;
+  --text:      #F1EDE4;
+  --text2:     #b3bfd8;
+  --text3:     #6b7390;
+  --hash:      #6EA0FF;
+  --addr:      #39d98a;
   --radius:    10px;
   --radius-sm: 6px;
   --shadow:    0 1px 3px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+  --font-heading: "Chakra Petch", sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,7 +30,7 @@
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -40,7 +42,7 @@ a { color: var(--primary-l); text-decoration: none; }
 a:hover { color: var(--text); text-decoration: underline; }
 
 code, .mono {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 12.5px;
 }
 
@@ -72,8 +74,11 @@ code, .mono {
   align-items: center;
   gap: 10px;
   color: var(--text);
+  font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 16px;
+  font-size: 17px;
+  text-transform: uppercase;
+  letter-spacing: .02em;
   text-decoration: none;
 }
 
@@ -91,9 +96,9 @@ code, .mono {
 .chain-badge {
   font-size: 11px;
   font-weight: 500;
-  background: rgba(124, 58, 237, 0.15);
+  background: rgba(76, 136, 255, 0.12);
   color: var(--primary-l);
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  border: 1px solid rgba(76, 136, 255, 0.3);
   padding: 2px 8px;
   border-radius: 20px;
 }
@@ -156,8 +161,11 @@ code, .mono {
 }
 
 .page-title {
+  font-family: var(--font-heading);
   font-size: 22px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .01em;
   margin-bottom: 4px;
 }
 
@@ -203,6 +211,7 @@ code, .mono {
 }
 
 .stat-value {
+  font-family: var(--font-heading);
   font-size: 28px;
   font-weight: 700;
   color: var(--text);
@@ -243,7 +252,7 @@ code, .mono {
 
 .chart-card {
   background:
-    radial-gradient(circle at top left, rgba(88, 166, 255, 0.12), transparent 45%),
+    radial-gradient(circle at top left, rgba(76, 136, 255, 0.14), transparent 45%),
     linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)),
     var(--surface);
   border: 1px solid var(--border);
@@ -261,8 +270,11 @@ code, .mono {
 }
 
 .chart-title {
+  font-family: var(--font-heading);
   font-size: 15px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .01em;
 }
 
 .chart-sub {
@@ -372,13 +384,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 .td-hash {
   color: var(--hash);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 12px;
 }
 
 .td-addr {
   color: var(--addr);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 12px;
 }
 
@@ -402,15 +414,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
 }
 
 .badge-coinbase {
-  background: rgba(124, 58, 237, 0.15);
+  background: rgba(76, 136, 255, 0.12);
   color: var(--primary-l);
-  border: 1px solid rgba(124, 58, 237, .25);
+  border: 1px solid rgba(76, 136, 255, .25);
 }
 
 .badge-tx {
-  background: rgba(88, 166, 255, 0.1);
+  background: rgba(110, 160, 255, 0.1);
   color: var(--blue);
-  border: 1px solid rgba(88, 166, 255, .2);
+  border: 1px solid rgba(110, 160, 255, .2);
 }
 
 .badge-count {
@@ -477,7 +489,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 }
 
 .tx-id {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 12px;
   color: var(--hash);
   flex: 1;
@@ -530,7 +542,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .io-row:last-child { border-bottom: none; }
 
 .io-addr {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 12px;
   color: var(--addr);
   overflow: hidden;
@@ -558,7 +570,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .payload-box {
   padding: 16px 24px;
   color: var(--text2);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 12.5px;
   white-space: pre-wrap;
   word-break: break-word;
@@ -629,7 +641,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 .addr-title { font-size: 18px; font-weight: 700; }
 .addr-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 13px;
   color: var(--addr);
   word-break: break-all;

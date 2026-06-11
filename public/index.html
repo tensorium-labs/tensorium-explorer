@@ -224,7 +224,7 @@ async function loadCharts() {
           </div>
           <div class="chart-chip">${formatNumber(data.difficulty.at(-1)?.value ?? 0)} bits</div>
         </div>
-        ${renderLineChart(data.difficulty, 'value', '#58a6ff', value => `${formatNumber(value)} bits`)}
+        ${renderLineChart(data.difficulty, 'value', '#4C88FF', value => `${formatNumber(value)} bits`)}
       </div>
       <div class="chart-card">
         <div class="chart-card-head">
@@ -234,7 +234,7 @@ async function loadCharts() {
           </div>
           <div class="chart-chip">${formatTxmFromAtoms(data.current_supply_atoms)} TXM</div>
         </div>
-        ${renderLineChart(data.supply, 'value_atoms', '#3fb950', value => `${formatTxmFromAtoms(value)} TXM`)}
+        ${renderLineChart(data.supply, 'value_atoms', '#39d98a', value => `${formatTxmFromAtoms(value)} TXM`)}
       </div>`;
   } catch (e) {
     mount.innerHTML = `<div class="card"><div class="state-box"><div class="state-icon">⚠</div><div class="state-title">Failed to load charts</div><div class="state-msg">${escapeHtml(e.message)}</div></div></div>`;

@@ -1,22 +1,22 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tensorium mark">
   <defs>
     <linearGradient id="hex" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#7af2ff"></stop>
-      <stop offset="0.5" stop-color="#2fe6ff"></stop>
-      <stop offset="1" stop-color="#9a78ff"></stop>
+      <stop offset="0" stop-color="#6EA0FF"></stop>
+      <stop offset="0.5" stop-color="#4C88FF"></stop>
+      <stop offset="1" stop-color="#4C88FF"></stop>
     </linearGradient>
     <linearGradient id="cTop" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#aef8ff"></stop><stop offset="1" stop-color="#2fe6ff"></stop>
+      <stop offset="0" stop-color="#aed0ff"></stop><stop offset="1" stop-color="#4C88FF"></stop>
     </linearGradient>
     <linearGradient id="cLeft" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1d6f8f"></stop><stop offset="1" stop-color="#0b2f48"></stop>
+      <stop offset="0" stop-color="#1d3f8f"></stop><stop offset="1" stop-color="#0b1d48"></stop>
     </linearGradient>
     <linearGradient id="cRight" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3a2f7a"></stop><stop offset="1" stop-color="#140d36"></stop>
+      <stop offset="0" stop-color="#1d2a6f"></stop><stop offset="1" stop-color="#0b0d36"></stop>
     </linearGradient>
     <radialGradient id="cg" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#2fe6ff" stop-opacity="0.95"></stop>
-      <stop offset="1" stop-color="#2fe6ff" stop-opacity="0"></stop>
+      <stop offset="0" stop-color="#4C88FF" stop-opacity="0.95"></stop>
+      <stop offset="1" stop-color="#4C88FF" stop-opacity="0"></stop>
     </radialGradient>
     <filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"></feGaussianBlur></filter>
   </defs>
@@ -25,9 +25,9 @@
   <g transform="translate(256 256)">
     
     <polygon points="0,-220 190,-110 190,110 0,220 -190,110 -190,-110" fill="#070d1a" stroke="url(#hex)" stroke-width="6"></polygon>
-    <polygon points="0,-220 190,-110 190,110 0,220 -190,110 -190,-110" fill="none" stroke="#2fe6ff" stroke-width="14" opacity="0.16" filter="url(#b)"></polygon>
+    <polygon points="0,-220 190,-110 190,110 0,220 -190,110 -190,-110" fill="none" stroke="#4C88FF" stroke-width="14" opacity="0.16" filter="url(#b)"></polygon>
     
-    <g stroke="#6d4dff" stroke-opacity="0.30" stroke-width="2">
+    <g stroke="#4C88FF" stroke-opacity="0.30" stroke-width="2">
       <line x1="0" y1="-220" x2="0" y2="0"></line>
       <line x1="190" y1="-110" x2="0" y2="0"></line>
       <line x1="190" y1="110" x2="0" y2="0"></line>
@@ -36,7 +36,7 @@
       <line x1="-190" y1="-110" x2="0" y2="0"></line>
     </g>
     
-    <g fill="#2fe6ff">
+    <g fill="#4C88FF">
       <circle cx="0" cy="-220" r="6"></circle><circle cx="190" cy="-110" r="6"></circle><circle cx="190" cy="110" r="6"></circle>
       <circle cx="0" cy="220" r="6"></circle><circle cx="-190" cy="110" r="6"></circle><circle cx="-190" cy="-110" r="6"></circle>
     </g>
@@ -46,14 +46,14 @@
       <polygon points="0,-92 92,-46 0,0 -92,-46" fill="url(#cTop)"></polygon>
       <polygon points="-92,-46 0,0 0,98 -92,52" fill="url(#cLeft)"></polygon>
       <polygon points="92,-46 0,0 0,98 92,52" fill="url(#cRight)"></polygon>
-      <g stroke="#bdf6ff" stroke-opacity="0.5" stroke-width="2.5" fill="none">
+      <g stroke="#cfe0ff" stroke-opacity="0.5" stroke-width="2.5" fill="none">
         <line x1="0" y1="0" x2="0" y2="98"></line><line x1="0" y1="0" x2="-92" y2="-46"></line><line x1="0" y1="0" x2="92" y2="-46"></line>
       </g>
-      <g fill="#eafdff">
+      <g fill="#eaf2ff">
         <circle cx="0" cy="-92" r="7"></circle><circle cx="92" cy="-46" r="6"></circle><circle cx="-92" cy="-46" r="6"></circle>
         <circle cx="0" cy="98" r="6"></circle><circle cx="92" cy="52" r="5"></circle><circle cx="-92" cy="52" r="5"></circle>
       </g>
-      <circle cx="0" cy="0" r="13" fill="#2fe6ff"></circle>
+      <circle cx="0" cy="0" r="13" fill="#4C88FF"></circle>
       <circle cx="0" cy="0" r="26" fill="url(#cg)"></circle>
     </g>
   </g>
