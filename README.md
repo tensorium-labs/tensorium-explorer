@@ -22,7 +22,7 @@ The explorer reads block and transaction data from a Tensorium node RPC endpoint
 
 - The explorer is read-only and depends on node RPC correctness
 - RPC should normally remain bound to localhost
-- Current chain ID: `tensorium-mainnet-candidate-0`
+- Current chain ID: `tensorium-mainnet`
 - Public P2P port for nodes: `33333/tcp`
 - Current transaction fee posture: no protocol-enforced minimum fee
 - Coinbase outputs mature after `100` blocks
