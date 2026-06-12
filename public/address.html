@@ -111,11 +111,16 @@ function render(d) {
   statsGrid.style.marginBottom = '24px';
 
   const stats = [
+    balanceStat(d.balance),
+    { label: 'Spendable', value: d.balance?.unavailable ? 'Unavailable' : `${d.balance?.spendable_txm || '0'} TXM`, sub: d.balance?.unavailable ? 'UTXO lookup failed' : `${formatNumber(d.balance?.spendable_atoms || 0)} atoms` },
+    { label: 'Immature', value: d.balance?.unavailable ? 'Unavailable' : `${d.balance?.immature_txm || '0'} TXM`, sub: d.balance?.unavailable ? 'Awaiting maturity' : `${formatNumber(d.balance?.immature_atoms || 0)} atoms` },
     { label: 'Total Received', value: `${d.total_received_txm} TXM`, sub: `${formatNumber(d.total_received_atoms)} atoms` },
     { label: 'Appearances', value: formatNumber(d.tx_count), sub: 'in blocks' },
+    utxoCountStat(d.balance),
   ];
 
   for (const s of stats) {
+    if (!s) continue;
     const card = document.createElement('div');
     card.className = 'stat-card';
     card.innerHTML = `
@@ -129,7 +134,9 @@ function render(d) {
   // Note about balance
   const note = document.createElement('div');
   note.style.cssText = 'background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--text2);margin-bottom:24px';
-  note.innerHTML = '⚠ <strong>Note:</strong> "Total Received" shows the sum of all outputs sent to this address across all blocks. Actual spendable balance requires UTXO tracking — use <code>txmwallet balance</code> for exact balance.';
+  note.innerHTML = d.balance?.unavailable
+    ? `⚠ <strong>Balance unavailable:</strong> explorer could not fetch live UTXO data right now (${escapeHtml(d.balance.error || 'unknown RPC error')}). "Total Received" still shows indexed incoming outputs.`
+    : `ℹ <strong>Balance:</strong> computed from live unspent outputs. <strong>Spendable</strong> excludes immature coinbase outputs. <strong>Total Received</strong> remains historical inflow and can be higher than current balance after spends.`;
   content.appendChild(note);
 
   // Transaction history
@@ -178,6 +185,37 @@ function addrColor(addr) {
   let h = 0;
   for (const c of addr) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
   return h % 360;
+}
+
+function balanceStat(balance) {
+  if (balance?.unavailable) {
+    return { label: 'Balance', value: 'Unavailable', sub: 'Live UTXO RPC failed' };
+  }
+  return {
+    label: 'Balance',
+    value: `${balance?.total_txm || '0'} TXM`,
+    sub: `${formatNumber(balance?.total_atoms || 0)} atoms`,
+  };
+}
+
+function utxoCountStat(balance) {
+  if (balance?.unavailable) return null;
+  const mature = formatNumber(balance?.mature_utxo_count || 0);
+  const immature = formatNumber(balance?.immature_utxo_count || 0);
+  return {
+    label: 'UTXOs',
+    value: formatNumber(balance?.utxo_count || 0),
+    sub: `${mature} mature • ${immature} immature`,
+  };
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 // Search

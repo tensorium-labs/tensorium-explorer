@@ -9,6 +9,7 @@ The explorer reads block and transaction data from a Tensorium node RPC endpoint
 - Block pages by height
 - Transaction lookup
 - Address activity pages
+- Live address balance from current UTXOs
 - Chain tip and block count display
 - Lightweight local index file for faster lookups
 

@@ -264,6 +264,10 @@ async function getTipState() {
   return withCache('rpc:getblockcount', CACHE_TTL_MS, () => rpcGet('/getblockcount'));
 }
 
+async function getAddressUtxos(address) {
+  return withCache(`utxos:${address}`, CACHE_TTL_MS, () => rpcGet(`/getutxos/${address}`));
+}
+
 async function getBlockByHeight(height) {
   return withCache(`block:${height}`, CACHE_TTL_MS, async () => {
     const raw = await rpcGet(`/getblock/${height}`);
@@ -638,12 +642,47 @@ app.get('/api/address/:addr', async (req, res) => {
     const appearances = [...(explorerIndex.addressAppearances.get(addr) || [])]
       .sort((a, b) => b.block_height - a.block_height);
     const totalReceived = appearances.reduce((sum, item) => sum + BigInt(item.received_atoms), 0n);
+    let balance = null;
+
+    try {
+      const utxoState = await getAddressUtxos(addr);
+      const utxos = Array.isArray(utxoState?.utxos) ? utxoState.utxos : [];
+      const matureBalance = utxos.reduce(
+        (sum, utxo) => sum + (utxo?.mature ? BigInt(utxo.value_atoms || 0) : 0n),
+        0n
+      );
+      const immatureBalance = utxos.reduce(
+        (sum, utxo) => sum + (!utxo?.mature ? BigInt(utxo.value_atoms || 0) : 0n),
+        0n
+      );
+      const totalBalance = matureBalance + immatureBalance;
+      const matureUtxoCount = utxos.filter(utxo => utxo?.mature).length;
+
+      balance = {
+        tip_height: Number.isInteger(utxoState?.tip_height) ? utxoState.tip_height : null,
+        utxo_count: Number.isInteger(utxoState?.utxo_count) ? utxoState.utxo_count : utxos.length,
+        mature_utxo_count: matureUtxoCount,
+        immature_utxo_count: utxos.length - matureUtxoCount,
+        total_atoms: Number(totalBalance),
+        total_txm: atomsToTxm(Number(totalBalance)),
+        spendable_atoms: Number(matureBalance),
+        spendable_txm: atomsToTxm(Number(matureBalance)),
+        immature_atoms: Number(immatureBalance),
+        immature_txm: atomsToTxm(Number(immatureBalance)),
+      };
+    } catch (balanceError) {
+      balance = {
+        unavailable: true,
+        error: balanceError.message,
+      };
+    }
 
     res.json({
       address: addr,
       total_received_atoms: Number(totalReceived),
       total_received_txm: atomsToTxm(Number(totalReceived)),
       tx_count: appearances.length,
+      balance,
       appearances,
     });
   } catch (e) {
