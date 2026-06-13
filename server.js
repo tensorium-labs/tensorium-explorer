@@ -7,6 +7,7 @@ const app = express();
 const PORT = 3000;
 const RPC_HOST = process.env.TENSORIUM_EXPLORER_RPC_HOST || '127.0.0.1';
 const RPC_PORT = Number(process.env.TENSORIUM_EXPLORER_RPC_PORT || 33332);
+const RPC_TIMEOUT_MS = Number(process.env.TENSORIUM_EXPLORER_RPC_TIMEOUT_MS || 12000);
 const ATOMS_PER_TXM = 100_000_000n;
 const CACHE_TTL_MS = 15_000;
 const CHART_CACHE_TTL_MS = 120_000;
@@ -14,10 +15,14 @@ const CHART_BLOCK_WINDOW = 240;
 const TX_SCAN_WINDOW = 120;
 const TX_BATCH_SIZE = 10;
 const INDEX_BATCH_SIZE = 25;
+const INDEX_REFRESH_INTERVAL_MS = Number(
+  process.env.TENSORIUM_EXPLORER_INDEX_REFRESH_INTERVAL_MS || 30000
+);
 const INDEX_PATH = process.env.TENSORIUM_EXPLORER_INDEX || path.join(__dirname, 'txindex.json');
 const ADDRESS_HRP = 'txm';
 const P2SH_HRP = 'txms';
 const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const rpcAgent = new http.Agent({ keepAlive: true, maxSockets: 32 });
 
 app.use((req, res, next) => {
   if (req.path === '/' || req.path.endsWith('.html') || req.path.startsWith('/api/')) {
@@ -134,7 +139,7 @@ function normalizeOutputAddress(output) {
 function rpcGet(path) {
   return new Promise((resolve, reject) => {
     const req = http.request(
-      { host: RPC_HOST, port: RPC_PORT, path, method: 'GET' },
+      { host: RPC_HOST, port: RPC_PORT, path, method: 'GET', agent: rpcAgent },
       res => {
         let data = '';
         res.on('data', c => (data += c));
@@ -145,7 +150,10 @@ function rpcGet(path) {
       }
     );
     req.on('error', reject);
-    req.setTimeout(5000, () => { req.destroy(); reject(new Error('RPC timeout')); });
+    req.setTimeout(RPC_TIMEOUT_MS, () => {
+      req.destroy();
+      reject(new Error(`RPC timeout after ${RPC_TIMEOUT_MS}ms`));
+    });
     req.end();
   });
 }
@@ -762,4 +770,14 @@ app.get('/tx/:txid', (req, res) =>
 
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`Tensorium Explorer running on http://127.0.0.1:${PORT}`);
+  ensureExplorerIndex().catch(error => {
+    explorerIndex.lastError = error.message;
+    console.error('initial explorer index sync failed:', error.message);
+  });
+  setInterval(() => {
+    ensureExplorerIndex().catch(error => {
+      explorerIndex.lastError = error.message;
+      console.error('background explorer index sync failed:', error.message);
+    });
+  }, INDEX_REFRESH_INTERVAL_MS);
 });
